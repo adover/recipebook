@@ -40,10 +40,7 @@ const namespace = 'com.dna.helpers.recipebook';
 // Ask questions
 // Clone repo
 
-const gitlab = {
-	AppID: 'cab38372d005e2d685873749cad7e5b87f7137f5f52614850081d0e29e2a223a',
-	Secret: 'e3361d469e66c14f323ab65c3c735083f1637e3bafd76b31901d7abc776e57ab'
-}
+
 
 const repos = [
 	{
