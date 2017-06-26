@@ -1,3 +1,27 @@
+// - Pull down repository
+// - Image Diff
+// 	- Provide CSV of URLs
+// 	- Provide folder to save diff screenshots into
+// 	- Generate report of files which failed diff
+// Recipe
+// 	- Ask which recipe to download
+// 	- Download that recipe
+// 	- Run make installer for that recipe (child_process)
+// 	- Create gitlab repo - https://www.npmjs.com/package/gitlab
+// Vanilla
+// 	- Run make installer
+// 	- Create gitlab repo
+// DNA Component
+// 	- Get list of available components in library
+// 	- Specify working directory
+// 	- Specify type of project 
+// 		- Add folder structure definitions
+// 	- Copy files
+// 	- Execute post build commands
+// CI 
+// 	- 
+
+
 const chalk = require('chalk');
 const clear = require('clear');
 const CLI = require('clui');
@@ -5,7 +29,6 @@ const figlet = require('figlet');
 const inquirer = require('inquirer');
 const Preferences = require('preferences');
 const Spinner = CLI.Spinner;
-const GitHubApi = require('github');
 const _ = require('lodash');
 const git = require('nodegit');
 const fs = require('fs');
@@ -17,10 +40,47 @@ const namespace = 'com.dna.helpers.recipebook';
 // Ask questions
 // Clone repo
 
-const urls = {
-	recipe: 'https://github.com/dnadesign/dna-recipe'
-	image: 'https://github.com/adover/imagediff'
+const gitlab = {
+	AppID: 'cab38372d005e2d685873749cad7e5b87f7137f5f52614850081d0e29e2a223a',
+	Secret: 'e3361d469e66c14f323ab65c3c735083f1637e3bafd76b31901d7abc776e57ab'
 }
+
+const repos = [
+	{
+		key: 'a',
+		name: 'DNA Vanilla',
+		desc: 'building a website from a predefined template',
+		value: 'vanilla'
+	},
+	{
+		key: 'b',
+		name: 'DNA Recipe',
+		desc: 'building a website from the foundations',
+		value: 'recipe',
+		url: 'https://github.com/dnadesign/dna-recipe'
+	},
+	{
+		key: 'c',
+		name: 'DNA Component',
+		desc: 'to go into the component library',
+		value: 'component'
+	},
+	{
+		key: 'd',
+		name: 'DNA CI',
+		desc: 'creating a build/test suite to plug in to a site',
+		value: 'ci'
+	},
+	{
+		key: 'e',
+		name: 'DNA Image Diff',
+		desc: 'creating a diffing suite',
+		value: 'image',
+		url: 'https://github.com/adover/imagediff'
+	},
+]
+
+
 class RecipeBook {
 	constructor() {
 
@@ -56,83 +116,57 @@ class RecipeBook {
 			baseFolder: arguments[0]['baseFolder']
 		}
 
-		this.projectSetup();
+		this.setFolder();
 	}
 
-	async projectSetup() {
+	async setFolder() {
 
-		const choices = [
-			{
-				key: 'a',
-				name: 'DNA Vanilla (building a website from a predefined template)',
-				value: 'vanilla'
-			},
-			{
-				key: 'b',
-				name: 'DNA Recipe (building a website from the foundations)',
-				value: 'recipe'
-			},
-			{
-				key: 'c',
-				name: 'DNA Component (to go into the component library)',
-				value: 'component'
-			},
-			{
-				key: 'd',
-				name: 'DNA CI (creating a build/test suite to plug in to a site)',
-				value: 'ci'
-			},
-			{
-				key: 'e',
-				name: 'DNA Image Diff (creating a diffing suite)',
-				value: 'image'
-			},
-		]
-			
 		const questions = [
-			this.getQuestion('folderName','input','Name the folder to install into', this.testDirectory.bind(this)),
-			this.getQuestion('projectType','expand','What type of project are you undertaking?', null, choices)
+			this.getQuestion('folderName','input','Name the folder to install into', (value) => this.validate(value)),
 		]
 
-		this.askQuestions(questions, (answers) => {
-			this.initTask(answers)
+		this.askQuestions(questions, async (answers) => {
+			if(answers.folderName){
+				await this.testDirectory(answers.folderName).then((a) => {
+					this.chooseProjectType();
+				}, (e) => {
+					console.log(e);
+					this.setFolder();
+				});
+			}
 		})
 
 	}
 
+	chooseProjectType() {
+		
+		const question = this.getQuestion('projectType','expand','What type of project are you undertaking?', null, repos)
+
+		this.askQuestions([question], this.initTask.bind(this));
+	}
+
 	initTask(answers) {
 
-		const status = new Spinner('Initialising Project...');
+		console.log('Initialising Project...');
+
+		const status = new Spinner();
     	status.start();
 
-		switch(answers.projectType) {
-			case 'vanilla':
-				git.clone(urls.vanilla, this.project.dir)  .then(function(repo) {
-    				//
-  				})
-			case 'recipe':
-				git.clone(urls.recipe, this.project.dir)  .then(function(repo) {
-    				//
-  				})
-			case 'component':
-				git.clone(urls.component, this.project.dir)  .then(function(repo) {
-    				//
-  				})
-			case 'ci':
-				git.clone(urls.ci, this.project.dir)  .then(function(repo) {
-    				//
-  				})
-			case 'image':
-				git.clone(urls.image, this.project.dir)  .then(function(repo) {
-    				//
-  				})
-		}
+    	repos.forEach(async (repo, k) => {
+    		if(repo.value === answers.projectType){
+    			git.Clone(repos[k]['url'], this.project.dir).then(function(repo) { 
+					console.log('Repo cloned successfully');
+					status.stop();
+				})
+    		}
+    	})
+
 	}
 
 	getQuestion(name, type, message, validate, choices = null, defaultResponse = null) {
 
 		return {
-		  name,
+		  name: name,
 		  type,
 		  choices,
 		  default: defaultResponse,
@@ -160,12 +194,12 @@ class RecipeBook {
 
 		return new Promise((resolve, reject) => {
 
-			this.project.dir = `${this.prefs.baseFolder}/${value}`.replace('//', '/')
+			this.project.dir = `${this.prefs.baseFolder}/${value}`.replace('//', '/');
 			fs.stat(this.project.dir, async (err, stats) => {
 				if(err || !stats.isDirectory()){
-					fs.mkdirSync(this.project.dir, (err) => {
+					fs.mkdir(this.project.dir, (err) => {
 						if(err){
-							resolve('That didn\'t work, try again');
+							reject('That didn\'t work, try again');
 						}
 						resolve(true);
 					});
@@ -174,10 +208,9 @@ class RecipeBook {
 					// TODO
 					exec(`ls -A ${this.project.dir} | wc -l`, (err, stdout, stderr) => {
 						if(err || stdout.trim() > 0){
-							// console.log(stdout.trim());
-							resolve('That didn\'t work, try again');
+							reject('Folder is not empty. Please choose another');
 						}
-						resolve(true);
+						resolve('hello');
 					})
 				}
 			})
