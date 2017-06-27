@@ -17,14 +17,13 @@
 // 	- Specify type of project 
 // 		- Add folder structure definitions
 // 	- Copy files
-// 	- Execute post build commands
+// 	- Execute post build commands (dev/build flush etc)
 // CI 
 // 	- 
 
 
 const chalk = require('chalk');
 const clear = require('clear');
-const CLI = require('clui');
 const figlet = require('figlet');
 const inquirer = require('inquirer');
 const Preferences = require('preferences');
